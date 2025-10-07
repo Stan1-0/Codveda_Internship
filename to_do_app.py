@@ -1,4 +1,4 @@
-import os, sys, json
+import os, json
 from datetime import datetime
 
 #specify file path for tasks.json
