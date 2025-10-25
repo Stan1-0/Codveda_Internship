@@ -1,9 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 import time
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 from typing import List, Tuple, Set
 import logging
+import csv
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -31,7 +33,7 @@ class WebScraper:
         })
     
     def _make_request(self, url: str) -> requests.Response:
-        """Make a request with retry logic."""
+        # Make a request with retry logic.
         for attempt in range(self.max_retries):
             try:
                 response = self.session.get(url, timeout=self.timeout)
@@ -129,6 +131,44 @@ class WebScraper:
         logger.info(f"Scraping completed. Total headlines found: {len(result)}")
         return result
     
+    def save_to_csv(self, headlines: List[Tuple[str, str]], filename: str = None) -> str:
+        """
+        Save scraped headlines to a CSV file.
+        
+        Args:
+            headlines: List of (headline, link) tuples
+            filename: Optional custom filename. If None, generates timestamp-based name
+            
+        Returns:
+            The filename of the saved CSV file
+        """
+        if not filename:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"scraped_headlines_{timestamp}.csv"
+        
+        # Ensure filename has .csv extension
+        if not filename.endswith('.csv'):
+            filename += '.csv'
+        
+        try:
+            with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.writer(csvfile)
+                
+                # Write header
+                writer.writerow(['Headline', 'Link', 'Scraped_At'])
+                
+                # Write data
+                scraped_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                for headline, link in headlines:
+                    writer.writerow([headline, link, scraped_time])
+            
+            logger.info(f"Successfully saved {len(headlines)} headlines to {filename}")
+            return filename
+            
+        except Exception as e:
+            logger.error(f"Failed to save CSV file: {e}")
+            raise
+    
     def close(self):
         """Close the session."""
         self.session.close()
@@ -160,6 +200,13 @@ def main():
             
             if len(headlines) > 10:
                 print(f"\n... and {len(headlines) - 10} more headlines")
+            
+            # Save to CSV
+            if headlines:
+                csv_filename = scraper.save_to_csv(headlines)
+                print(f"\nData saved to CSV file: {csv_filename}")
+            else:
+                print("\nNo headlines found to save.")
                 
         finally:
             scraper.close()
